@@ -1,3 +1,6 @@
+# name: ZHAO Yu Xuan
+# email: yxzhao@connect.ust.hk
+
 .data
 # player instruction
 input_key:	.word 0 # input key from the player
@@ -318,15 +321,44 @@ block_move_right:
 # Lastly, pop and restore values in $ra, $s0, $s1, $s2, $s3  and return
 # Hint: you can refer to block_move_left to get some clues and pause "p" is very useful to debug.
 # *****Your codes start here
+	addi $sp, $sp, -20 # push for preserve of 20 words data
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+
+	lw $t0,0($s1) #load the x_loc of the current block
+	addi $a0,$t0,1 #assume block moving right is valid
+	
+	lw $a1,0($s2) #load the y_loc of the current block
+	lw $a2,0($s3) #load the mode of the current block
+	lw $a3,0($s0) #load the id of the current block
+	
+	jal check_movement_valid # if invalid, change $a0 back to original x_loc value
+	
+	beq $v0,$zero,bml_exit	# if $v0 = 0 -> exit the user instruction due to the invalid input
+
+bml_after_move:
+	sw $a0,0($s1) #update the x_loc of the current block
+	
+	lw $a0,0($s1) #load the x_loc of the current block
+	lw $a1,0($s2) #load the y_loc of the current block
+	lw $a2,0($s3) #load the mode of the current block
+	li $v0,104
+	syscall
+	
+bml_exit:
+	li $v0,101 #refresh the screen
+	syscall
+			
+	lw $ra, 0($sp) # push for preserve of 20 words data 
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s3, 16($sp)
+	addi $sp, $sp, 20
 	jr $ra		
-		
-		
-		
-		
-		
-		
-		
-		
 # *****Your codes end here	
 
 
@@ -353,15 +385,55 @@ block_rotate:
 # Lastly, pop and restore values in $ra, $s0, $s1, $s2, $s3  and return
 # Hint: you can refer to block_move_left to get some clues and pause "p" is very useful to debug.
 # *****Your codes start here
-	jr $ra		
+	addi $sp, $sp, -20 # push for preserve of 20 words data
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+
+	lw $a0,0($s1) #load the x_loc of the current block
+	lw $a1,0($s2) #load the y_loc of the current block
+	lw $a2,0($s3) #load the mode of the current block
+	lw $a3,0($s0) #load the id of the current block	
 		
+	# assume the block rotation is valid, assign the mode to a2
+	addi $t0, $a2, -3
+	beq $t0, $zero, mode_overflow
+	addi $a2, $a2, 1
+	j finish_assign_potential_mode
+
+mode_overflow:
+	li $a2, 0
+finish_assign_potential_mode:
+
+	
+	jal check_movement_valid # if invalid, change $a0 back to original x_loc value
+	
+	beq $v0,$zero,bml_exit	# if $v0 = 0 -> exit the user instruction due to the invalid input
+
+bml_after_move:
+	sw $a2,0($s3) #update the mode of the current block
+	
+	lw $a0,0($s1) #load the x_loc of the current block
+	lw $a1,0($s2) #load the y_loc of the current block
+	lw $a2,0($s3) #load the mode of the current block
+	li $v0,104
+	syscall
+	
+bml_exit:
+	li $v0,101 #refresh the screen
+	syscall
+			
+	lw $ra, 0($sp) # push for preserve of 20 words data 
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s3, 16($sp)
+	addi $sp, $sp, 20
+	jr $ra			
 		
-		
-		
-		
-		
-		
-		
+	
 # *****Your codes end here	
 		
 
@@ -485,17 +557,70 @@ check_movement_valid:
 # All situations includes crossing horizontal_boundary, crossing vertical_boundary and overlapping with fixed squares.
 # At last, set the value of $v0 based on the check result ,and pop and restore values in $ra, $s4  and return.
 #*****Your codes start here
+	addi $sp, $sp, -8
+	lw $ra 0($sp)
+	lw $s4 4($sp)
+	li $v0, 0
 
-	li $v0, 1
-        jr $ra
-		
-		
-		
-		
-		
-		
-		
-		
+	# get the data for the mode_x_loc, mode_y_loc
+	la $t0, mode_x_loc
+	la $t1, mode_y_loc
+
+	# get four sqaures coordinate and check valid
+	square_loop:
+		# loop condition checking
+		li $t2, 4
+		slt $t2, $v0, $t2 # $t2 = i < 4 , v0 is the iterator of i
+		beq $t2, $zero, loop_exit
+		sll $t6, $a3, 4 # $t6 = id * 16
+		sll $t5, $a2, 2 # $t5 = mode * 4
+		add $t6, $t6, $t5 
+		add $t6, $t6, $t0
+		add $t6, $t6, $v0 
+		lb $t2, 0($t6) # $t2 = mode_x_loc[id][mode][i] + x
+		add $t2, $t2, $a0 # first square x coordinate
+		sll $t5, $a3, 4 # $t5 = id * 16
+		sll $t6, $a2, 2 # $t6 = mode * 4
+		add $t5, $t5, $t6 
+		add $t5, $t5, $t1
+		add $t5, $t5, $v0 
+		lb $t3, 0($t5)
+		add $t3, $t3, $a1 # $t3 = mode_y_loc[id][mode][i] + y
+		# checking
+		li $t4, 22 # for x
+		slt $t4, $t2, $t4 # $t4 = x < 22
+		beq $t4, $zero, invalid_movement
+		li $t4, -1
+		slt $t4, $t4, $t2 # $t4 = -1 < x
+		beq $t4, $zero, invalid_movement
+		li $t4, 10 # for y
+		slt $t4, $t3, $t4 # $t4 = y < 10
+		beq $t4, $zero, invalid_movement
+		li $t4, -1
+		slt $t4, $t4, $t3 # $t4 = -1 < y
+		beq $t4, $zero, invalid_movement
+		li $t5, 10
+		mul $t5, $t5, $t2 # $t5 = 10 * x
+		add $t5, $t5, $t3 # $t5 = x * 10 + y
+		add $t5, $t5, $s4 
+		lb $t5, 0($s4) # $t5 = bit_map[x][y]
+		bne $t5, $zero, invalid_movement # overlapping
+		addi $v0, $v0, 1 # i++
+		j square_loop
+
+	loop_exit:
+		li $v0 1,
+		j Exit
+
+invalid_movement:
+	li $v0, 0
+
+Exit:
+	lw $ra 0($sp)
+	lw $s4 4($sp)
+	addi $sp, $sp, 8
+	jr $ra
+			
 # *****Your codes end here	
 				
 	
@@ -518,15 +643,55 @@ update_basic_matrix:
 # Thirdly, increment the corresponding coordinate in basic_matrix_bitmap by 1.
 # At last, pop and restore values in $ra, $s4  and return.
 #*****Your codes start here
-        jr $ra
-		
-		
-		
-		
-		
-		
-		
-		
+	addi $sp, $sp, 12 # stack push
+	sw $ra, 0($sp)
+	sw $s4, 4($sp)
+	sw $v0, 8($sp)
+
+	# get the data for the mode_x_loc, mode_y_loc
+	la $t0, mode_x_loc
+	la $t1, mode_y_loc
+
+	# get four sqaures coordinate and check valid
+	square_loop:
+		# loop condition checking
+		li $t2, 4
+		slt $t2, $v0, $t2 # $t2 = i < 4 , v0 is the iterator of i
+		beq $t2, $zero, loop_exit
+		sll $t6, $a3, 4 # $t6 = id * 16
+		sll $t5, $a2, 2 # $t5 = mode * 4
+		add $t6, $t6, $t5 
+		add $t6, $t6, $t0
+		add $t6, $t6, $v0 
+		lb $t2, 0($t6) # $t2 = mode_x_loc[id][mode][i] + x
+		add $t2, $t2, $a0 # first square x coordinate
+		sll $t5, $a3, 4 # $t5 = id * 16
+		sll $t6, $a2, 2 # $t6 = mode * 4
+		add $t5, $t5, $t6 
+		add $t5, $t5, $t1
+		add $t5, $t5, $v0 
+		lb $t3, 0($t5)
+		add $t3, $t3, $a1 # $t3 = mode_y_loc[id][mode][i] + y
+		li $t5, 10
+		mul $t5, $t5, $t2 # $t5 = 10 * x
+		add $t5, $t5, $t3 # $t5 = x * 10 + y
+		add $t5, $t5, $s4 
+		lw $t2, 0($t5)
+		addi $t2, $t2, 1
+		sw $t2, 0($t5) # update the bit map
+		addi $v0, $v0, 1
+		j square_loop
+
+	loop_exit:
+
+	li $v0, 105 # update the basic martix map in java code
+	syscall
+	lw $ra 0($sp) # stack pop
+	lw $s4 4($sp)
+	lw $v0, 8($v0)
+	addi $sp, $sp, 12
+	jr $ra
+
 # *****Your codes end here
 
 
@@ -681,15 +846,25 @@ process_full_row:
 # Thirdly, let the first row of basic matrix equal to zero.
 # At last, use syscall 107 and 102, then pop and restore values in $ra, $s4  and return.
 #*****Your codes start here
-        jr $ra
-		
-		
-		
-		
-		
-		
-		
-		
+	addi $sp, $sp, -7
+	sw $ra 0($sp)
+	sw $s4, 4($sp)
+	
+	
+	
+	
+	
+	li $v0, 107
+	syscall
+	li $v0, 102
+	syscall
+	li $v0, 105
+	syscall	
+	lw $ra 0($sp)
+	lw $s4, 4($sp) 
+	addi $sp, $sp 8
+	jr $ra
+			
 # *****Your codes end here
 
 
