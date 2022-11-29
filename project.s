@@ -337,9 +337,9 @@ block_move_right:
 	
 	jal check_movement_valid # if invalid, change $a0 back to original x_loc value
 	
-	beq $v0,$zero,bml_exit	# if $v0 = 0 -> exit the user instruction due to the invalid input
+	beq $v0,$zero,bmr_exit	# if $v0 = 0 -> exit the user instruction due to the invalid input
 
-bml_after_move:
+bmr_after_move:
 	sw $a0,0($s1) #update the x_loc of the current block
 	
 	lw $a0,0($s1) #load the x_loc of the current block
@@ -348,7 +348,7 @@ bml_after_move:
 	li $v0,104
 	syscall
 	
-bml_exit:
+bmr_exit:
 	li $v0,101 #refresh the screen
 	syscall
 			
@@ -410,9 +410,9 @@ finish_assign_potential_mode:
 	
 	jal check_movement_valid # if invalid, change $a0 back to original x_loc value
 	
-	beq $v0,$zero,bml_exit	# if $v0 = 0 -> exit the user instruction due to the invalid input
+	beq $v0,$zero,br_exit	# if $v0 = 0 -> exit the user instruction due to the invalid input
 
-bml_after_move:
+br_after_move:
 	sw $a2,0($s3) #update the mode of the current block
 	
 	lw $a0,0($s1) #load the x_loc of the current block
@@ -421,7 +421,7 @@ bml_after_move:
 	li $v0,104
 	syscall
 	
-bml_exit:
+br_exit:
 	li $v0,101 #refresh the screen
 	syscall
 			
@@ -558,20 +558,21 @@ check_movement_valid:
 # At last, set the value of $v0 based on the check result ,and pop and restore values in $ra, $s4  and return.
 #*****Your codes start here
 	addi $sp, $sp, -8
-	lw $ra 0($sp)
-	lw $s4 4($sp)
+	sw $ra 0($sp)
+	sw $s4 4($sp)
 	li $v0, 0
 
 	# get the data for the mode_x_loc, mode_y_loc
 	la $t0, mode_x_loc
 	la $t1, mode_y_loc
+	la $s4, basic_matrix_bitmap
 
 	# get four sqaures coordinate and check valid
-	square_loop:
+	square_loop_check:
 		# loop condition checking
 		li $t2, 4
 		slt $t2, $v0, $t2 # $t2 = i < 4 , v0 is the iterator of i
-		beq $t2, $zero, loop_exit
+		beq $t2, $zero, suqre_loop_check_exit
 		sll $t6, $a3, 4 # $t6 = id * 16
 		sll $t5, $a2, 2 # $t5 = mode * 4
 		add $t6, $t6, $t5 
@@ -587,28 +588,28 @@ check_movement_valid:
 		lb $t3, 0($t5)
 		add $t3, $t3, $a1 # $t3 = mode_y_loc[id][mode][i] + y
 		# checking
-		li $t4, 22 # for x
-		slt $t4, $t2, $t4 # $t4 = x < 22
+		li $t4, 10 # for x
+		slt $t4, $t2, $t4 # $t4 = x < 10
 		beq $t4, $zero, invalid_movement
 		li $t4, -1
 		slt $t4, $t4, $t2 # $t4 = -1 < x
 		beq $t4, $zero, invalid_movement
-		li $t4, 10 # for y
-		slt $t4, $t3, $t4 # $t4 = y < 10
+		li $t4, 22 # for y
+		slt $t4, $t3, $t4 # $t4 = y < 22
 		beq $t4, $zero, invalid_movement
 		li $t4, -1
 		slt $t4, $t4, $t3 # $t4 = -1 < y
 		beq $t4, $zero, invalid_movement
 		li $t5, 10
-		mul $t5, $t5, $t2 # $t5 = 10 * x
-		add $t5, $t5, $t3 # $t5 = x * 10 + y
+		mul $t5, $t5, $t3 # $t5 = 10 * y
+		add $t5, $t5, $t2 # $t5 = y * 10 + x
 		add $t5, $t5, $s4 
-		lb $t5, 0($s4) # $t5 = bit_map[x][y]
+		lb $t5, 0($t5) # $t5 = bit_map[x][y]
 		bne $t5, $zero, invalid_movement # overlapping
 		addi $v0, $v0, 1 # i++
-		j square_loop
+		j square_loop_check
 
-	loop_exit:
+	suqre_loop_check_exit:
 		li $v0 1,
 		j Exit
 
@@ -651,13 +652,14 @@ update_basic_matrix:
 	# get the data for the mode_x_loc, mode_y_loc
 	la $t0, mode_x_loc
 	la $t1, mode_y_loc
+	la $s4, basic_matrix_bitmap
 
 	# get four sqaures coordinate and check valid
-	square_loop:
+	square_loop_update:
 		# loop condition checking
 		li $t2, 4
 		slt $t2, $v0, $t2 # $t2 = i < 4 , v0 is the iterator of i
-		beq $t2, $zero, loop_exit
+		beq $t2, $zero, square_loop_update_exit
 		sll $t6, $a3, 4 # $t6 = id * 16
 		sll $t5, $a2, 2 # $t5 = mode * 4
 		add $t6, $t6, $t5 
@@ -673,22 +675,22 @@ update_basic_matrix:
 		lb $t3, 0($t5)
 		add $t3, $t3, $a1 # $t3 = mode_y_loc[id][mode][i] + y
 		li $t5, 10
-		mul $t5, $t5, $t2 # $t5 = 10 * x
-		add $t5, $t5, $t3 # $t5 = x * 10 + y
+		mul $t5, $t5, $t3 # $t5 = 10 * y
+		add $t5, $t5, $t2 # $t5 = y * 10 + x
 		add $t5, $t5, $s4 
-		lw $t2, 0($t5)
+		lb $t2, 0($t5)
 		addi $t2, $t2, 1
-		sw $t2, 0($t5) # update the bit map
+		sb $t2, 0($t5) # update the bit map
 		addi $v0, $v0, 1
-		j square_loop
+		j square_loop_update
 
-	loop_exit:
+	square_loop_update_exit:
 
 	li $v0, 105 # update the basic martix map in java code
 	syscall
 	lw $ra 0($sp) # stack pop
 	lw $s4 4($sp)
-	lw $v0, 8($v0)
+	lw $v0, 8($sp)
 	addi $sp, $sp, 12
 	jr $ra
 
@@ -846,21 +848,71 @@ process_full_row:
 # Thirdly, let the first row of basic matrix equal to zero.
 # At last, use syscall 107 and 102, then pop and restore values in $ra, $s4  and return.
 #*****Your codes start here
-	addi $sp, $sp, -7
+	addi $sp, $sp, -7 # stack pop
 	sw $ra 0($sp)
 	sw $s4, 4($sp)
 	
-	
-	
-	
-	
+	la $s4, basic_matrix_bitmap
+	add $t0, $a0, $zero # $t0 = i, loop iterator for row, cur_y
+	li $t1, 0 # $t1 = j, loop iterator for column, cur_x
+
+	# loop over the bit map to update
+	loop1:
+		li $t2, 1
+		slt $t2, $t0, $t2 # $t2 = i < 1
+		bne $t2, $zero, exit_loop1
+		loop2:
+			slt $t2, $t1, $a1 # $t2 = j < 10(width)
+			beq $t2, $zero, exit_loop2
+			addi $t3, $t0, -1
+			mul $t3, $t3, $a1 # $t3 = (i - 1) * row_width
+			add $t3, $t3, $t1 # $t3 = i * row_width + j
+			add $t3, $t3, $s4
+			lb $t2, 0($t3) # $t2 = bit_map[i-1][j]
+			add $t3, $t3, $a1
+			sb $t2, 0($t3) # bit_map[i][j] = bit_map[i-1][j]
+			addi $t1, $t1, 1
+			j loop2
+		
+		exit_loop2:
+			addi $t0, $t0, -1
+			j loop1
+
+	exit_loop1:
+	# update basic matrix
+	# li $v0, 105
+	# syscall
+
+	li $t6, 0
+	first_row:
+		li $t5, 10
+		slt $t5, $t6, $t5
+		beq $t5, $zero, exit_first_row
+		add $t5, $t6, $s4
+		li $t4, 0
+		sb $t4, 0($t5)
+		addi $t6, $t6, 1
+		j first_row
+
+	exit_first_row:
+
+
+	# remove the full row of a0
 	li $v0, 107
 	syscall
+	# play music for removing one full row
+	add $t0, $a0, $zero
+	addi $a0, $zero, 2
+	add $t1, $a1, $zero
+	li $a1, 0
 	li $v0, 102
 	syscall
-	li $v0, 105
-	syscall	
-	lw $ra 0($sp)
+	add $a0, $t0, $zero
+	add $a1, $t1, $zero
+	# screen refresh
+	li $v0, 101
+	syscall
+	lw $ra 0($sp) # stack pop
 	lw $s4, 4($sp) 
 	addi $sp, $sp 8
 	jr $ra
