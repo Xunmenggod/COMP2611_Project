@@ -565,7 +565,7 @@ check_movement_valid:
 	# get the data for the mode_x_loc, mode_y_loc
 	la $t0, mode_x_loc
 	la $t1, mode_y_loc
-	la $s4, basic_matrix_bitmap
+	# la $s4, basic_matrix_bitmap
 
 	# get four sqaures coordinate and check valid
 	square_loop_check:
@@ -644,7 +644,7 @@ update_basic_matrix:
 # Thirdly, increment the corresponding coordinate in basic_matrix_bitmap by 1.
 # At last, pop and restore values in $ra, $s4  and return.
 #*****Your codes start here
-	addi $sp, $sp, 12 # stack push
+	addi $sp, $sp, -12 # stack push
 	sw $ra, 0($sp)
 	sw $s4, 4($sp)
 	sw $v0, 8($sp)
@@ -652,7 +652,7 @@ update_basic_matrix:
 	# get the data for the mode_x_loc, mode_y_loc
 	la $t0, mode_x_loc
 	la $t1, mode_y_loc
-	la $s4, basic_matrix_bitmap
+	# la $s4, basic_matrix_bitmap
 
 	# get four sqaures coordinate and check valid
 	square_loop_update:
@@ -685,7 +685,9 @@ update_basic_matrix:
 		j square_loop_update
 
 	square_loop_update_exit:
-
+	add $a0, $a0, $zero
+	add $a1, $a1, $zero
+	add $a2, $a2, $zero
 	li $v0, 105 # update the basic martix map in java code
 	syscall
 	lw $ra 0($sp) # stack pop
@@ -848,11 +850,11 @@ process_full_row:
 # Thirdly, let the first row of basic matrix equal to zero.
 # At last, use syscall 107 and 102, then pop and restore values in $ra, $s4  and return.
 #*****Your codes start here
-	addi $sp, $sp, -7 # stack pop
+	addi $sp, $sp, -8 # stack pop
 	sw $ra 0($sp)
 	sw $s4, 4($sp)
 	
-	la $s4, basic_matrix_bitmap
+	# la $s4, basic_matrix_bitmap
 	add $t0, $a0, $zero # $t0 = i, loop iterator for row, cur_y
 	li $t1, 0 # $t1 = j, loop iterator for column, cur_x
 
@@ -866,7 +868,7 @@ process_full_row:
 			beq $t2, $zero, exit_loop2
 			addi $t3, $t0, -1
 			mul $t3, $t3, $a1 # $t3 = (i - 1) * row_width
-			add $t3, $t3, $t1 # $t3 = i * row_width + j
+			add $t3, $t3, $t1 # $t3 = (i - 1) * row_width + j
 			add $t3, $t3, $s4
 			lb $t2, 0($t3) # $t2 = bit_map[i-1][j]
 			add $t3, $t3, $a1
@@ -876,6 +878,7 @@ process_full_row:
 		
 		exit_loop2:
 			addi $t0, $t0, -1
+			add $t1, $zero, $zero
 			j loop1
 
 	exit_loop1:
@@ -909,9 +912,6 @@ process_full_row:
 	syscall
 	add $a0, $t0, $zero
 	add $a1, $t1, $zero
-	# screen refresh
-	li $v0, 101
-	syscall
 	lw $ra 0($sp) # stack pop
 	lw $s4, 4($sp) 
 	addi $sp, $sp 8
